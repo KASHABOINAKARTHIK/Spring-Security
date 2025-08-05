@@ -9,9 +9,9 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.insurance.app</groupId>
-	<artifactId>Security-GITHUB</artifactId>
+	<artifactId>Spring-Security</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>Security-GITHUB</name>
+	<name>Spring-Security</name>
 	<description>Demo project for Spring Boot</description>
 	<url/>
 	<licenses>

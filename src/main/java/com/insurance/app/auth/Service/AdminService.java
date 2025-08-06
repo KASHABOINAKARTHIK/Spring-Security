@@ -23,9 +23,14 @@ import com.insurance.app.auth.dto.LoginRequest;
 import com.insurance.app.auth.dto.LoginResponse;
 import com.insurance.app.auth.dto.RegistrationRequest;
 import com.insurance.app.auth.dto.UserProfileResponse;
+import com.insurance.app.auth.exceptionHandling.AccessForbiddenException;
+
+import com.insurance.app.auth.exceptionHandling.UserAlreadyExistsException;
+import com.insurance.app.auth.exceptionHandling.UserNotFoundException;
+import com.insurance.app.auth.exceptionHandling.WrongStatusException;
 import com.insurance.app.auth.inbuiltUtilyClasses.CustomUserDetails;
 
-import jakarta.persistence.EntityNotFoundException;
+
 
 @Service
 public class AdminService {
@@ -44,7 +49,7 @@ public class AdminService {
     
     
     //login
-    public LoginResponse loginAdmin(LoginRequest req)throws AccessDeniedException {
+    public LoginResponse loginAdmin(LoginRequest req)throws AccessForbiddenException{
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword())
         );
@@ -53,10 +58,10 @@ public class AdminService {
         Users user = customUserDetails.getUser();
 
         if (user.getRole() != Roles.ADMIN) {
-            throw new AccessDeniedException("Access Denied for Admin area");
+            throw new AccessForbiddenException("Access Denied for Admin area");
         }
         if (!user.isActive()) {
-            throw new IllegalStateException("Admin account not activated");
+            throw new WrongStatusException("Admin account not activated");
         }
         String token = jwtTokenProvider.generateToken(user.getEmail(), user.getRole());
         return new LoginResponse(user.getName(), user.getEmail(), user.getRole(), token);
@@ -65,7 +70,7 @@ public class AdminService {
     //load profile
     public UserProfileResponse loadUserProfile(String email) {
         Users user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
         return new UserProfileResponse(user.getId(),user.getName(), user.getEmail(), user.getRole(),
                 user.isActive(), user.getPanNumber());
     }
@@ -73,11 +78,14 @@ public class AdminService {
     
     //change password
     public void changePassword(ChangePasswordRequest req) {
+    	
         Users user = userRepository.findByEmail(req.getEmail())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+        
         if (!passwordEncoder.matches(req.getOldPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("Old password incorrect");
+            throw new WrongStatusException("Old password incorrect");
         }
+        
         user.setPassword(passwordEncoder.encode(req.getNewPassword()));
         userRepository.save(user);
     }
@@ -85,9 +93,9 @@ public class AdminService {
     //reset password / forgot password
     public void forgotPassword(ForgotPasswordRequest req) {
         Users user = userRepository.findByEmail(req.getEmail())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
         if (!user.getPanNumber().equals(req.getPanNumber())) {
-            throw new IllegalArgumentException("Invalid PAN Number");
+            throw new WrongStatusException("Invalid PAN Number");
         }
         user.setPassword(passwordEncoder.encode(req.getNewPassword()));
         userRepository.save(user);
@@ -96,9 +104,9 @@ public class AdminService {
     
     //activate new admin
     public String activateAdmin(Long adminId) {
-        Users admin = userRepository.findById(adminId).orElseThrow(() -> new EntityNotFoundException("Admin Not Found"));
+        Users admin = userRepository.findById(adminId).orElseThrow(() -> new UserNotFoundException("Admin Not Found"));
         if (admin.getRole() != Roles.ADMIN) {
-            throw new IllegalArgumentException("User is not admin");
+            throw new WrongStatusException("User is not admin");
         }
         if (admin.isActive()) {
             return "Admin already active";
@@ -111,7 +119,7 @@ public class AdminService {
     //deactivate any user
     public String deactivateUser(Long userId) {
         Users user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User Not Found"));
+                .orElseThrow(() -> new UserNotFoundException("User Not Found"));
         user.setActive(false);
         userRepository.save(user);
         return "User account deactivated";
@@ -129,26 +137,26 @@ public class AdminService {
     public UserProfileResponse findUserByEmailOrId(String email, Long id) {
         Users user;
         if(email != null && !email.isEmpty()) {
-            user = userRepository.findByEmail(email).orElseThrow(() -> new EntityNotFoundException("User Not Found"));
+            user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException("User Not Found"));
             
         } 
         else if (id != null) {
-            user = userRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("User Not Found"));
+            user = userRepository.findById(id).orElseThrow(() -> new UserNotFoundException("User Not Found"));
             
         } 
         else {
-            throw new IllegalArgumentException("Email or ID must be provided");
+            throw new WrongStatusException("Email or ID must be provided");
             
         }
         return new UserProfileResponse(user.getId(),user.getName(), user.getEmail(), user.getRole(), user.isActive(), user.getPanNumber());
     }
 
 
-    public String register(RegistrationRequest req) {
+    public String register(RegistrationRequest req) throws UserAlreadyExistsException{
 		
     	Optional<Users> existingUser = userRepository.findByEmail(req.getEmail());
 	    if (existingUser.isPresent()) {
-	        return "User with the email already Exists";
+	        throw new UserAlreadyExistsException("User Already Exists witht the mail ID");
 	    }
 		
 		Users user = new Users();
@@ -157,7 +165,7 @@ public class AdminService {
 	    user.setPassword(passwordEncoder.encode(req.getPassword()));
 	    user.setPanNumber(req.getPanNumber());
 	    user.setRole(req.getRole());
-	    // Activate CUSTOMER by default; ADMIN inactive by default
+	   
 	    user.setActive(req.getRole() == Roles.CUSTOMER);
 
 	    userRepository.save(user);

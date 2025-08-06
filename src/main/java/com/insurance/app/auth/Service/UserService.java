@@ -1,12 +1,12 @@
 package com.insurance.app.auth.Service;
 
-import java.nio.file.AccessDeniedException;
+
 import java.util.Optional;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +20,11 @@ import com.insurance.app.auth.dto.LoginRequest;
 import com.insurance.app.auth.dto.LoginResponse;
 import com.insurance.app.auth.dto.RegistrationRequest;
 import com.insurance.app.auth.dto.UserProfileResponse;
+import com.insurance.app.auth.exceptionHandling.AccessForbiddenException;
+
+import com.insurance.app.auth.exceptionHandling.UserAlreadyExistsException;
+import com.insurance.app.auth.exceptionHandling.UserNotFoundException;
+import com.insurance.app.auth.exceptionHandling.WrongStatusException;
 import com.insurance.app.auth.inbuiltUtilyClasses.CustomUserDetails;
 
 @Service
@@ -37,7 +42,7 @@ public class UserService { // customer
         this.jwtTokenProvider = jwtTokenProvider;
     }
 
-    public LoginResponse loginUser(LoginRequest req) throws AccessDeniedException {
+    public LoginResponse loginUser(LoginRequest req) throws AccessForbiddenException {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword())
         );
@@ -45,7 +50,7 @@ public class UserService { // customer
         Users user = customUserDetails.getUser();
 
         if (user.getRole() != Roles.CUSTOMER) {
-            throw new AccessDeniedException("Access Denied for Customer area");
+            throw new AccessForbiddenException("Access Denied for Customer area");
         }
         String token = jwtTokenProvider.generateToken(user.getEmail(), user.getRole());
         return new LoginResponse(user.getName(), user.getEmail(), user.getRole(), token);
@@ -53,36 +58,39 @@ public class UserService { // customer
 
     public UserProfileResponse loadUserProfile(String email) {
         Users user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
         return new UserProfileResponse(user.getId(),user.getName(), user.getEmail(), user.getRole(),
                 user.isActive(), user.getPanNumber());
     }
 
     public void changePassword(ChangePasswordRequest req) {
         Users user = userRepository.findByEmail(req.getEmail())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
         if (!passwordEncoder.matches(req.getOldPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("Old password incorrect");
+            throw new WrongStatusException("Old password incorrect");
         }
         user.setPassword(passwordEncoder.encode(req.getNewPassword()));
         userRepository.save(user);
     }
 
     public void forgotPassword(ForgotPasswordRequest req) {
+    	
         Users user = userRepository.findByEmail(req.getEmail())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+        
         if (!user.getPanNumber().equals(req.getPanNumber())) {
-            throw new IllegalArgumentException("Invalid PAN Number");
+            throw new WrongStatusException("Invalid PAN Number");
         }
+        
         user.setPassword(passwordEncoder.encode(req.getNewPassword()));
         userRepository.save(user);
     }
 
-	public String register(RegistrationRequest req) {
+	public String register(RegistrationRequest req) throws UserAlreadyExistsException{
 		
 		Optional<Users> existingUser = userRepository.findByEmail(req.getEmail());
 	    if (existingUser.isPresent()) {
-	        return "User with the email already Exists";
+	         throw new UserAlreadyExistsException("User with the email already Exists");
 	    }
 		
 		Users user = new Users();
@@ -91,7 +99,7 @@ public class UserService { // customer
 	    user.setPassword(passwordEncoder.encode(req.getPassword()));
 	    user.setPanNumber(req.getPanNumber());
 	    user.setRole(req.getRole());
-	    // Activate CUSTOMER by default; ADMIN inactive by default
+
 	    user.setActive(req.getRole() == Roles.CUSTOMER);
 
 	    userRepository.save(user);
@@ -99,13 +107,12 @@ public class UserService { // customer
 		
 	}
 
-	
+	//this is to verify before we change the password.
 	public boolean existsByEmail(String email) {	
 		 Optional<Users> user=userRepository.findByEmail(email);
 		 if(user.isPresent()) {
 			 return true;
 		 }
-		
 		return false;
 	}
 }

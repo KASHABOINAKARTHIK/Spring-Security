@@ -47,20 +47,49 @@ public class SecurityConfiguration {
         return config.getAuthenticationManager();
     }
 
+//    @Bean
+//    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+//        http.csrf().disable();
+//        http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+//
+//        http.authorizeHttpRequests(authorize -> authorize
+//                .requestMatchers("/api/auth/**").permitAll()
+//                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+//                .requestMatchers("/api/customer/**").hasRole("CUSTOMER")
+//                .anyRequest().authenticated()
+//        );
+//
+//        http.authenticationProvider(authenticationProvider());
+//        http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+//
+//        return http.build();
+//    }
+    
+    
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf().disable();
-        http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
-
-        http.authorizeHttpRequests(authorize -> authorize
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(
+                    "/swagger-ui/**",
+                    "/v3/api-docs/**",
+                    "/swagger-ui.html",
+                    "/api/users/login",
+                    "/api/users/register",
+                    "/api/admin/login",
+                    "/api/admin/register"
+                ).permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/customer/**").hasRole("CUSTOMER")
+             	.requestMatchers("/api/admin/**").hasRole("ADMIN")
+              	.requestMatchers("/api/customer/**").hasRole("CUSTOMER")
                 .anyRequest().authenticated()
-        );
-
-        http.authenticationProvider(authenticationProvider());
+            )
+            .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authenticationProvider(authenticationProvider());
+        
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            
 
         return http.build();
     }

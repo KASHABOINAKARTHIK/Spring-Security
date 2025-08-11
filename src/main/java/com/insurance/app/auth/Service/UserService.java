@@ -53,7 +53,7 @@ public class UserService { // customer
             throw new AccessForbiddenException("Access Denied for Customer area");
         }
         String token = jwtTokenProvider.generateToken(user.getEmail(), user.getRole());
-        return new LoginResponse(user.getName(), user.getEmail(), user.getRole(), token);
+        return new LoginResponse(user.getId(),user.getName(), user.getEmail(), user.getRole(), token);
     }
 
     public UserProfileResponse loadUserProfile(String email) {

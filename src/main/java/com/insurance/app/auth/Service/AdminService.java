@@ -64,7 +64,7 @@ public class AdminService {
             throw new WrongStatusException("Admin account not activated");
         }
         String token = jwtTokenProvider.generateToken(user.getEmail(), user.getRole());
-        return new LoginResponse(user.getName(), user.getEmail(), user.getRole(), token);
+        return new LoginResponse(user.getId(),user.getName(), user.getEmail(), user.getRole(), token);
     }
     
     //load profile

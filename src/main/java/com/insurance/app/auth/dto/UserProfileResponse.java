@@ -1,6 +1,7 @@
 package com.insurance.app.auth.dto;
 
 import com.insurance.app.auth.Entity.Roles;
+import com.insurance.app.auth.Entity.Users;
 
 //lombok
 import lombok.AllArgsConstructor;

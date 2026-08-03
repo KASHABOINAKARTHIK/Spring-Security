@@ -5,6 +5,8 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,11 +17,15 @@ import org.springframework.web.bind.annotation.RestController;
 import com.insurance.app.auth.Entity.Roles;
 import com.insurance.app.auth.Service.AdminService;
 import com.insurance.app.auth.dto.UserProfileResponse;
-import com.insurance.app.auth.inbuiltUtilyClasses.CustomUserDetails;
+//import com.insurance.app.auth.inbuiltUtilyClasses.CustomUserDetails;
 
 @RestController
 @RequestMapping("/api/admin")
 @PreAuthorize("hasRole('ADMIN')")
+@CrossOrigin(
+	    origins = "http://localhost:4200",
+	    allowCredentials = "true"
+	)
 public class AdminController {
 
     private final AdminService adminService;
@@ -29,9 +35,13 @@ public class AdminController {
     }
 
     @GetMapping("/profile")
-    public ResponseEntity<UserProfileResponse> getProfile(Authentication authentication) {
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        return ResponseEntity.ok(adminService.loadUserProfile(userDetails.getUsername()));
+    public ResponseEntity<UserProfileResponse> getProfile() {
+    	String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(adminService.loadUserProfile(email));
+    }
+    @GetMapping("/all-users")
+    public ResponseEntity<List<UserProfileResponse>> getAllUsers() {
+        return ResponseEntity.ok(adminService.getAllUsers());
     }
 
     @GetMapping("/pending-admins")
@@ -46,12 +56,20 @@ public class AdminController {
 
     @PostMapping("/activate-admin/{id}")
     public ResponseEntity<String> activateAdmin(@PathVariable Long id) {
-        return ResponseEntity.ok(adminService.activateAdmin(id));
+    	String status=adminService.activateAdmin(id);
+        return ResponseEntity.ok(status);
+        
+    }
+    @PostMapping("/activate-customer/{id}")
+    public ResponseEntity<String> activateCustomer(@PathVariable Long id) {
+    	String status=adminService.activateCustomer(id);
+        return ResponseEntity.ok(status);
     }
 
     @PostMapping("/deactivate-user/{id}")
     public ResponseEntity<String> deactivateUser(@PathVariable Long id) {
-        return ResponseEntity.ok(adminService.deactivateUser(id));
+    	String status=adminService.deactivateUser(id);
+        return ResponseEntity.ok(status);
     }
 
     @GetMapping("/find-user")

@@ -6,7 +6,7 @@ import java.util.Optional;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -25,7 +25,7 @@ import com.insurance.app.auth.exceptionHandling.AccessForbiddenException;
 import com.insurance.app.auth.exceptionHandling.UserAlreadyExistsException;
 import com.insurance.app.auth.exceptionHandling.UserNotFoundException;
 import com.insurance.app.auth.exceptionHandling.WrongStatusException;
-import com.insurance.app.auth.inbuiltUtilyClasses.CustomUserDetails;
+//import com.insurance.app.auth.inbuiltUtilyClasses.CustomUserDetails;
 
 @Service
 public class UserService { // customer
@@ -46,8 +46,10 @@ public class UserService { // customer
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword())
         );
-        CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
-        Users user = customUserDetails.getUser();
+        
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        
+        Users user = userRepository.findByEmail(req.getEmail()).orElseThrow(() -> new UserNotFoundException("User Not Found"));
 
         if (user.getRole() != Roles.CUSTOMER) {
             throw new AccessForbiddenException("Access Denied for Customer area");

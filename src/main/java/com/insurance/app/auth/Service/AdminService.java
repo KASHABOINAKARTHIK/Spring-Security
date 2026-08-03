@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -28,7 +29,7 @@ import com.insurance.app.auth.exceptionHandling.AccessForbiddenException;
 import com.insurance.app.auth.exceptionHandling.UserAlreadyExistsException;
 import com.insurance.app.auth.exceptionHandling.UserNotFoundException;
 import com.insurance.app.auth.exceptionHandling.WrongStatusException;
-import com.insurance.app.auth.inbuiltUtilyClasses.CustomUserDetails;
+//import com.insurance.app.auth.inbuiltUtilyClasses.CustomUserDetails;
 
 
 
@@ -50,12 +51,13 @@ public class AdminService {
     
     //login
     public LoginResponse loginAdmin(LoginRequest req)throws AccessForbiddenException{
-        Authentication authentication = authenticationManager.authenticate(
+        
+    	Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword())
         );
-
-        CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
-        Users user = customUserDetails.getUser();
+        
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        Users user = userRepository.findByEmail(req.getEmail()).orElseThrow(() -> new UserNotFoundException("User Not Found"));
 
         if (user.getRole() != Roles.ADMIN) {
             throw new AccessForbiddenException("Access Denied for Admin area");
@@ -69,7 +71,7 @@ public class AdminService {
     
     //load profile
     public UserProfileResponse loadUserProfile(String email) {
-        Users user = userRepository.findByEmail(email)
+    	Users user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
         return new UserProfileResponse(user.getId(),user.getName(), user.getEmail(), user.getRole(),
                 user.isActive(), user.getPanNumber());
@@ -173,6 +175,35 @@ public class AdminService {
 		
 	}
     
+    public String activateCustomer(Long id) {
+        Users user = userRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        if (user.getRole() != Roles.CUSTOMER) {
+            throw new RuntimeException("User is not a customer");
+        }
+        
+        user.setActive(true);
+        userRepository.save(user);
+        return "Customer activated successfully";
+    }
+    public List<UserProfileResponse> getAllUsers() {
+        List<Users> allUsers = userRepository.findAll();
+        return allUsers.stream()
+            .map(this::convertToUserProfileResponse)
+            .collect(Collectors.toList());
+    }
+    private UserProfileResponse convertToUserProfileResponse(Users user) {
+        return new UserProfileResponse(
+            user.getId(),
+            user.getName(),
+            user.getEmail(),
+            user.getRole(),
+            user.isActive(),
+            user.getPanNumber()
+        );
+    }
+ 
     
 
 }
